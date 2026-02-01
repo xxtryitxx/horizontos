@@ -13,12 +13,12 @@ interface LayoutProps {
   onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, user, onLogout }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView: handleViewChange, user, onLogout }) => {
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-[#F8FAFC]">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-72 h-screen sticky top-0 bg-white border-r border-slate-100 p-5 z-40">
-        <div className="mb-8 px-1 cursor-pointer" onClick={() => setActiveView('dashboard')}>
+        <div className="mb-8 px-1 cursor-pointer" onClick={() => handleViewChange('dashboard')}>
           <Logo variant="compact" />
         </div>
         
@@ -29,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveView(item.id as AppView)}
+                onClick={() => handleViewChange(item.id as AppView)}
                 className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group ${
                   isActive 
                     ? 'bg-brand-orange text-white shadow-lg shadow-brand-orange/25' 
@@ -56,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveView(item.id as AppView)}
+                    onClick={() => handleViewChange(item.id as AppView)}
                     className={`w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 group ${
                       isActive 
                         ? 'bg-brand-burgundy text-white shadow-lg shadow-brand-burgundy/25' 
@@ -97,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
 
       {/* Mobile Top Header */}
       <header className="md:hidden flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-lg border-b border-slate-100 sticky top-0 z-50">
-        <div className="cursor-pointer" onClick={() => setActiveView('dashboard')}>
+        <div className="cursor-pointer" onClick={() => handleViewChange('dashboard')}>
           <Logo variant="compact" />
         </div>
         <div className="flex items-center gap-4">
@@ -149,7 +149,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
           return (
             <button
               key={item.id}
-              onClick={() => setActiveView(item.id as AppView)}
+              onClick={() => handleViewChange(item.id as AppView)}
               className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all ${
                 isActive ? 'bg-brand-orange text-white scale-110 shadow-lg shadow-brand-orange/40' : 'text-slate-400'
               }`}
@@ -160,7 +160,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView, us
         })}
         {user.isAdmin && (
            <button
-             onClick={() => setActiveView('admin-users')}
+             onClick={() => handleViewChange('admin-users')}
              className={`flex flex-col items-center justify-center w-12 h-12 rounded-2xl transition-all ${
                activeView.startsWith('admin') ? 'bg-brand-burgundy text-white scale-110 shadow-lg' : 'text-slate-400'
              }`}

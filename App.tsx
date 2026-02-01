@@ -41,7 +41,7 @@ import { auth, db, storage, functions } from './firebase';
 
 import Layout from './components/Layout';
 import Logo from './components/Logo';
-import AdminPanel from './components/AdminPanel';
+import { AdminPanel } from './components/AdminPanel';
 import { AppView, User, Post, BoardNote, Survey, Giveaway, Message, SickLeaveEntry, RosterEntry } from './types';
 import { getAiResponse } from './services/geminiService';
 import { lockUser, deleteUserAccount, updateUserRole } from './services/firebaseService';
@@ -51,11 +51,34 @@ import Snake from './components/Games/Snake';
 import Memory from './components/Games/Memory';
 import WhackAMole from './components/Games/WhackAMole';
 
+// Feature Components
+import { PerformanceDashboard } from './components/Features/PerformanceDashboard';
+import { FileShareUI } from './components/Features/FileShareUI';
+import { ShiftSwapUI } from './components/Features/ShiftSwapUI';
+import { VoiceMessageUI } from './components/Features/VoiceMessageUI';
+import { ShiftTradingUI } from './components/Features/ShiftTradingUI';
+import { FeedbackUI } from './components/Features/FeedbackUI';
+import { MentoringUI } from './components/Features/MentoringUI';
+import { KnowledgeBaseUI } from './components/Features/KnowledgeBaseUI';
+import { NotificationSettingsUI } from './components/Features/NotificationSettingsUI';
+import { EmailDigestSettingsUI } from './components/Features/EmailDigestSettingsUI';
+import { CalendarSyncSettingsUI } from './components/Features/CalendarSyncSettingsUI';
+import { PWAInstallBanner } from './components/Features/PWAInstallBanner';
+import { OnlineStatus } from './components/Features/OnlineStatus';
+import { Achievements } from './components/Features/Achievements';
+import { BirthdayCalendar } from './components/Features/BirthdayCalendar';
+import { DarkModeToggle } from './components/Features/DarkModeToggle';
+import { TeamChannels } from './components/Features/TeamChannels';
+
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
-  const [activeView, setActiveView] = useState<AppView>('dashboard');
+  const [activeView, setActiveView] = useState<AppView>(() => {
+    // URL-Parameter lesen beim initialisieren
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('view') as AppView) || 'dashboard';
+  });
   const [currentGame, setCurrentGame] = useState<'none' | 'snake' | 'memory' | 'whack'>('none');
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -99,6 +122,7 @@ const App: React.FC = () => {
             name: firebaseUser.displayName || 'Mitarbeiter',
             email: firebaseUser.email || '',
             role: 'Mitarbeiter',
+            status: isAdminClaim ? 'Admin' : 'User',
             avatar: firebaseUser.photoURL || `https://picsum.photos/seed/${firebaseUser.uid}/100/100`,
             score: 0,
             isAdmin: isAdminClaim
@@ -176,6 +200,18 @@ const App: React.FC = () => {
     return () => unsubMsgs();
   }, [user, selectedChatUser]);
 
+  // Browser Back-Button Support
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const view = (params.get('view') as AppView) || 'dashboard';
+      setActiveView(view);
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   useEffect(() => {
     if (activeView === 'chat') {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -191,7 +227,8 @@ const App: React.FC = () => {
         id: userCredential.user.uid,
         name: regName,
         email: email,
-        role: 'Pflegefachkraft',
+        role: 'Mitarbeiter',
+        status: 'User',
         avatar: `https://picsum.photos/seed/${regName}/100/100`,
         score: 0,
         isAdmin: false
@@ -290,7 +327,7 @@ const App: React.FC = () => {
         createdAt: Timestamp.now()
       });
       alert("Krankmeldung eingereicht!");
-      setActiveView('dashboard');
+      handleViewChange('dashboard');
     } catch (err) {
       alert("Fehler beim Einreichen.");
     }
@@ -333,6 +370,13 @@ const App: React.FC = () => {
     }
   };
 
+  // URL-basierte Navigation
+  const handleViewChange = (view: AppView) => {
+    setActiveView(view);
+    // URL aktualisieren ohne Reload
+    window.history.pushState({ view }, '', `?view=${view}`);
+  };
+
   const handleChangeRole = async (targetUid: string, newRole: 'admin' | 'mitarbeiter') => {
     setIsProcessingRole(targetUid);
     try {
@@ -340,7 +384,8 @@ const App: React.FC = () => {
       await setUserRoleFn({ targetUid, role: newRole });
       await updateDoc(doc(db, "users", targetUid), {
         isAdmin: newRole === 'admin',
-        role: newRole === 'admin' ? 'Administrator' : 'Pflegefachkraft'
+        role: newRole === 'admin' ? 'Administrator' : 'Mitarbeiter',
+        status: newRole === 'admin' ? 'Admin' : 'User'
       });
       alert(`Rolle erfolgreich auf ${newRole} aktualisiert.`);
     } catch (err: any) {
@@ -455,7 +500,7 @@ const App: React.FC = () => {
                   <div className="relative z-10">
                     <h2 className="text-4xl font-black mb-4 tracking-tighter">Dein Horizont Score</h2>
                     <p className="text-6xl font-black">{user.score} <span className="text-2xl font-medium opacity-60">pts</span></p>
-                    <button onClick={() => setActiveView('games')} className="mt-8 bg-white text-brand-orange px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all">Jetzt spielen & sammeln <ArrowUpRight size={16} /></button>
+                    <button onClick={() => handleViewChange('games')} className="mt-8 bg-white text-brand-orange px-8 py-3 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all">Jetzt spielen & sammeln <ArrowUpRight size={16} /></button>
                   </div>
                   <Sparkles className="absolute right-[-20px] bottom-[-20px] w-64 h-64 text-white/10" />
                 </div>
@@ -463,7 +508,7 @@ const App: React.FC = () => {
                 <section className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="font-black text-brand-burgundy tracking-tight flex items-center gap-2 text-xl"><Rss size={24} className="text-brand-orange" /> Aktuelle News</h3>
-                    <button onClick={() => setActiveView('feed')} className="text-brand-orange font-bold text-xs uppercase tracking-widest">Feed öffnen</button>
+                    <button onClick={() => handleViewChange('feed')} className="text-brand-orange font-bold text-xs uppercase tracking-widest">Feed öffnen</button>
                   </div>
                   <div className="space-y-4">
                     {feed.slice(0, 3).map(post => (
@@ -645,7 +690,7 @@ const App: React.FC = () => {
                                 <p className="text-2xl font-black text-brand-burgundy tracking-tighter">{user.score} pts</p>
                             </div>
                         </div>
-                        <button onClick={() => setActiveView('leaderboard')} className="text-brand-burgundy hover:bg-white p-2 rounded-xl transition-all"><ArrowUpRight size={24} /></button>
+                        <button onClick={() => handleViewChange('leaderboard')} className="text-brand-burgundy hover:bg-white p-2 rounded-xl transition-all"><ArrowUpRight size={24} /></button>
                     </div>
 
                     <div className="mt-10 pt-10 border-t border-slate-50 flex flex-col gap-3">
@@ -838,13 +883,136 @@ const App: React.FC = () => {
             </div>
         );
 
+      case 'analytics':
+        if (!user.isAdmin) return <div className="p-20 text-center font-black">ZUGRIFF VERWEIGERT</div>;
+        return (
+          <div className="space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Performance Dashboard</h2>
+              <p className="text-slate-500 font-medium italic">Statistiken und Analysen.</p>
+            </header>
+            <PerformanceDashboard allUsers={allUsers} />
+          </div>
+        );
+
+      case 'file-share':
+        return (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Dateifreigabe</h2>
+              <p className="text-slate-500 font-medium italic">Dateien mit dem Team teilen.</p>
+            </header>
+            <FileShareUI userId={user.id} channelId="general" sharedFiles={[]} />
+          </div>
+        );
+
+      case 'shift-swap':
+        return (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Schichtwechsel</h2>
+              <p className="text-slate-500 font-medium italic">Tausche Schichten mit Kollegen.</p>
+            </header>
+            <ShiftSwapUI userId={user.id} userName={user.name} allUsers={allUsers} />
+          </div>
+        );
+
+      case 'voice-messages':
+        return (
+          <div className="max-w-2xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Sprachnachrichten</h2>
+              <p className="text-slate-500 font-medium italic">Nachrichten aufzeichnen und teilen.</p>
+            </header>
+            <VoiceMessageUI userId={user.id} channelId="general" voiceMessages={[]} />
+          </div>
+        );
+
+      case 'shift-trading':
+        return (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Schicht-Handel</h2>
+              <p className="text-slate-500 font-medium italic">Handeln Sie Schichten mit dem Team.</p>
+            </header>
+            <ShiftTradingUI userId={user.id} userName={user.name} allUsers={allUsers} availableTrades={[]} />
+          </div>
+        );
+
+      case 'feedback':
+        return (
+          <div className="max-w-2xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Feedback & Bewertungen</h2>
+              <p className="text-slate-500 font-medium italic">Deine Meinung ist uns wichtig.</p>
+            </header>
+            <FeedbackUI userId={user.id} feedbackList={[]} />
+          </div>
+        );
+
+      case 'mentoring':
+        return (
+          <div className="max-w-4xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Mentoring-System</h2>
+              <p className="text-slate-500 font-medium italic">Lerne von erfahrenen Kollegen.</p>
+            </header>
+            <MentoringUI userId={user.id} userName={user.name} allUsers={allUsers} mentoringTasks={[]} />
+          </div>
+        );
+
+      case 'knowledge-base':
+        return (
+          <div className="space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Wissensdatenbank</h2>
+              <p className="text-slate-500 font-medium italic">Artikel, Prozesse und FAQs.</p>
+            </header>
+            <KnowledgeBaseUI userId={user.id} articles={[]} />
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="max-w-2xl mx-auto space-y-8">
+            <header>
+              <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">⚙️ Einstellungen</h2>
+              <p className="text-slate-500 font-medium italic">Personalisiere dein HorizontOS Erlebnis.</p>
+            </header>
+
+            {/* Dark Mode */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <h3 className="font-black text-brand-burgundy mb-4 text-lg">Erscheinungsbild</h3>
+              <DarkModeToggle />
+            </div>
+
+            {/* Notifications */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <h3 className="font-black text-brand-burgundy mb-4 text-lg">Benachrichtigungen</h3>
+              <NotificationSettingsUI user={user} onUpdateSettings={(settings) => console.log('Notif settings:', settings)} />
+            </div>
+
+            {/* Email Digest */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <h3 className="font-black text-brand-burgundy mb-4 text-lg">Email-Zusammenfassung</h3>
+              <EmailDigestSettingsUI email={user.email} onUpdateSettings={(settings) => console.log('Email digest:', settings)} />
+            </div>
+
+            {/* Calendar Sync */}
+            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100">
+              <h3 className="font-black text-brand-burgundy mb-4 text-lg">Kalender-Synchronisierung</h3>
+              <CalendarSyncSettingsUI onUpdateSettings={(settings) => console.log('Calendar sync:', settings)} />
+            </div>
+          </div>
+        );
+
       default:
         return <div className="p-20 text-center text-slate-300 font-black uppercase tracking-widest">Bereich: {activeView}</div>;
     }
   };
 
   return (
-    <Layout activeView={activeView} setActiveView={setActiveView} user={user!} onLogout={handleLogout}>
+    <Layout activeView={activeView} setActiveView={handleViewChange} user={user!} onLogout={handleLogout}>
       {renderView()}
     </Layout>
   );
