@@ -1,0 +1,8 @@
+{
+  "name": "HorizontOS Live",
+  "description": "Die ultimative Mitarbeiter-Plattform - Jetzt live befeuert durch Firebase für maximale Zuverlässigkeit.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

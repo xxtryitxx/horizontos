@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HorizontOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                orange: '#f37021',
+                burgundy: '#8b1d3d',
+                'orange-light': '#fff1e6',
+                'burgundy-light': '#f5eef0',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        body { 
+          font-family: 'Plus Jakarta Sans', sans-serif; 
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+        .glass {
+          background: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .orange-glow {
+          box-shadow: 0 10px 40px -10px rgba(243, 112, 33, 0.3);
+        }
+        .bg-brand-gradient {
+          background: linear-gradient(135deg, #f37021 0%, #d65b16 100%);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+    "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+    "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js",
+    "firebase/functions": "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js",
+    "firebase/": "https://esm.sh/firebase@^12.8.0/",
+    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
+    "firebase-functions": "https://esm.sh/firebase-functions@^7.0.5"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-slate-50 text-slate-900 selection:bg-brand-orange/10 selection:text-brand-orange">
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
