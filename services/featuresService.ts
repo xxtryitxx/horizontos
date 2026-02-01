@@ -10,7 +10,6 @@ import {
   deleteDoc,
   doc,
   query,
-  getDoc,
   where,
   getDocs,
   getDoc,
@@ -54,22 +53,6 @@ export async function setUserOffline(userId: string) {
   try {
     await updateDoc(doc(db, "users", userId), {
       isOnline: false,
-
-    // Try to send via Vercel serverless endpoint (if deployed). We fetch recipient email from users collection.
-    try {
-      const userSnap = await getDoc(doc(db, 'users', userId));
-      const toEmail = userSnap && userSnap.exists() ? (userSnap.data() as any).email : null;
-      if (toEmail) {
-        // fire-and-forget POST to local API route
-        fetch('/api/sendNotificationEmail', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ to: toEmail, subject: title, text: message, data })
-        }).catch(e => console.warn('Vercel email endpoint failed:', e));
-      }
-    } catch (e) {
-      console.warn('Could not send via Vercel endpoint:', e);
-    }
       lastSeen: Timestamp.now(),
     });
   } catch (error: any) {
@@ -488,6 +471,22 @@ export async function createNotification(
       createdAt: Timestamp.now(),
     });
     console.log("✅ Notification created");
+
+    // Try to send via Vercel serverless endpoint (if deployed)
+    try {
+      const userSnap = await getDoc(doc(db, "users", userId));
+      const toEmail = userSnap?.exists() ? (userSnap.data() as any)?.email : null;
+      if (toEmail) {
+        // fire-and-forget POST to local API route
+        fetch("/api/sendNotificationEmail", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ to: toEmail, subject: title, text: message, data }),
+        }).catch((e) => console.warn("Vercel email endpoint failed:", e));
+      }
+    } catch (e) {
+      console.warn("Could not send via Vercel endpoint:", e);
+    }
   } catch (error: any) {
     console.error("❌ Error:", error.message);
     throw error;
