@@ -16,9 +16,9 @@ export function ShiftSwapUI({ userId, userName, allUsers }: ShiftSwapUIProps) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Stub implementation - connect to actual service
-    // const unsubscribe = onShiftSwapsUpdated(setSwapRequests);
-    // return unsubscribe;
+    // Connect real-time listener for requests targeting the current user
+    const unsubscribe = onShiftSwapsUpdated(userId, setSwapRequests);
+    return unsubscribe;
   }, []);
 
   const handleRequestSwap = async () => {
@@ -100,8 +100,8 @@ export function ShiftSwapUI({ userId, userName, allUsers }: ShiftSwapUIProps) {
               <div key={req.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-bold">Mit {req.recipientId}</p>
-                    <p className="text-sm text-slate-600">{req.shiftTime}</p>
+                        <p className="font-bold">Mit {req.recipientName || (allUsers.find(u => u.id === req.recipientId)?.name) || req.recipientId}</p>
+                        <p className="text-sm text-slate-600">{req.shiftTime || req.requestedShift || req.originalShift}</p>
                   </div>
                   <span className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${
                     req.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :

@@ -75,6 +75,7 @@ export interface SickLeaveEntry {
   startDate: string;
   endDate: string;
   status: 'pending' | 'approved' | 'rejected';
+  attachmentURL?: string;
   createdAt?: any;
 }
 

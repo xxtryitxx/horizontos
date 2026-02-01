@@ -1,0 +1,18 @@
+{
+  "projectId": "prj_Z37Dq7tQG3XhHMvhtycMlMxn0KcJ",
+  "buildCommand": "npm run build",
+  "devCommand": "vite",
+  "installCommand": "npm install",
+  "framework": "vite",
+  "outputDirectory": "dist",
+  "env": [
+    {
+      "key": "SENDGRID_API_KEY",
+      "value": "@sendgrid_api_key"
+    },
+    {
+      "key": "SENDGRID_FROM",
+      "value": "@sendgrid_from"
+    }
+  ]
+}

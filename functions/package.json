@@ -1,0 +1,13 @@
+{
+  "name": "functions",
+  "description": "Cloud Functions for HorizontOS",
+  "private": true,
+  "engines": {
+    "node": "18"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.10.1",
+    "firebase-functions": "^4.3.0",
+    "@sendgrid/mail": "^7.7.0"
+  }
+}

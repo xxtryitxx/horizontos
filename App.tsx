@@ -45,6 +45,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { AppView, User, Post, BoardNote, Survey, Giveaway, Message, SickLeaveEntry, RosterEntry } from './types';
 import { getAiResponse } from './services/geminiService';
 import { lockUser, deleteUserAccount, updateUserRole } from './services/firebaseService';
+import { onNotificationsUpdated } from './services/featuresService';
 
 // Individual Components for Views
 import Snake from './components/Games/Snake';
@@ -81,6 +82,7 @@ const App: React.FC = () => {
   });
   const [currentGame, setCurrentGame] = useState<'none' | 'snake' | 'memory' | 'whack'>('none');
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const lastNotifIdRef = useRef<string | null>(null);
 
   // Firebase Data States
   const [feed, setFeed] = useState<Post[]>([]);
@@ -183,22 +185,64 @@ const App: React.FC = () => {
     }
 
     // User-to-User Chat Case
-    // We want messages where (sender=Me AND receiver=Selected) OR (sender=Selected AND receiver=Me)
-    const qMsgs = query(
+    // Use two separate queries to avoid composite index requirement
+    const q1 = query(
       collection(db, "messages"),
-      or(
-        and(where("senderId", "==", user.id), where("receiverId", "==", selectedChatUser.id)),
-        and(where("senderId", "==", selectedChatUser.id), where("receiverId", "==", user.id))
-      ),
+      where("senderId", "==", user.id),
+      where("receiverId", "==", selectedChatUser.id),
       orderBy("timestamp", "asc")
     );
 
-    const unsubMsgs = onSnapshot(qMsgs, (snap) => {
-      setMessages(snap.docs.map(d => ({ id: d.id, ...d.data() } as Message)));
+    const q2 = query(
+      collection(db, "messages"),
+      where("senderId", "==", selectedChatUser.id),
+      where("receiverId", "==", user.id),
+      orderBy("timestamp", "asc")
+    );
+
+    const unsub1 = onSnapshot(q1, (snap1) => {
+      const msgs1 = snap1.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+      
+      onSnapshot(q2, (snap2) => {
+        const msgs2 = snap2.docs.map(d => ({ id: d.id, ...d.data() } as Message));
+        const combined = [...msgs1, ...msgs2].sort((a, b) => a.timestamp.seconds - b.timestamp.seconds);
+        setMessages(combined);
+      });
     });
 
-    return () => unsubMsgs();
+    return () => unsub1();
   }, [user, selectedChatUser]);
+
+  // 4. Notifications listener -> show browser notification for new items
+  useEffect(() => {
+    if (!user) return;
+    // reset last seen id when user changes
+    lastNotifIdRef.current = null;
+
+    const unsub = onNotificationsUpdated(user.id, (notifs) => {
+      if (!notifs || notifs.length === 0) return;
+      const latest = notifs[0];
+      if (!latest.id) return;
+      if (lastNotifIdRef.current === latest.id) return; // already shown
+      lastNotifIdRef.current = latest.id;
+
+      // respect user preference
+      if (user.notificationsEnabled !== false && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          try {
+            new Notification(latest.title || 'Benachrichtigung', {
+              body: latest.message || '',
+              icon: '/logo.svg',
+            });
+          } catch (nerr) {
+            console.warn('Notification Fehler:', nerr);
+          }
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [user]);
 
   // Browser Back-Button Support
   useEffect(() => {
@@ -316,19 +360,32 @@ const App: React.FC = () => {
     if (!user) return;
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
+    const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = fileInput?.files?.[0];
     
     try {
+      let attachmentURL = '';
+      
+      // Datei hochladen falls vorhanden
+      if (file) {
+        const storageRef = ref(storage, `sickleaves/${user.id}/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        attachmentURL = await getDownloadURL(storageRef);
+      }
+      
       await addDoc(collection(db, "sickleaves"), {
         userId: user.id,
         userName: user.name,
         startDate: formData.get('startDate'),
         endDate: formData.get('endDate'),
         status: 'pending',
+        attachmentURL: attachmentURL || '',
         createdAt: Timestamp.now()
       });
       alert("Krankmeldung eingereicht!");
       handleViewChange('dashboard');
     } catch (err) {
+      console.error('Fehler bei Krankmeldung:', err);
       alert("Fehler beim Einreichen.");
     }
   };
@@ -712,16 +769,27 @@ const App: React.FC = () => {
                    <div><label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Erster Tag</label><input type="date" name="startDate" required className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-brand-orange/20 outline-none" /></div>
                    <div><label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Voraussichtlich bis</label><input type="date" name="endDate" required className="w-full bg-slate-50 border-none rounded-2xl px-5 py-4 focus:ring-2 focus:ring-brand-orange/20 outline-none" /></div>
                  </div>
-                 <div><label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Attest / Foto</label><div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center text-slate-400 hover:border-brand-orange transition-all cursor-pointer"><FileUp size={32} className="mx-auto mb-2" /><p className="text-sm font-bold">PDF oder Bild hochladen</p></div></div>
+                 <div>
+                   <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Attest / Foto</label>
+                   <input type="file" name="attachment" accept=".pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} id="sickleave-file" />
+                   <label htmlFor="sickleave-file" className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center text-slate-400 hover:border-brand-orange transition-all cursor-pointer block"><FileUp size={32} className="mx-auto mb-2" /><p className="text-sm font-bold">PDF oder Bild hochladen</p></label>
+                 </div>
                  <button type="submit" className="w-full bg-brand-burgundy text-white font-black py-5 rounded-2xl uppercase text-xs tracking-widest hover:brightness-110 transition-all">Meldung Abschicken</button>
                </form>
              </div>
              <div className="mt-8 space-y-4">
                <h3 className="font-black text-brand-burgundy text-lg">Meine Meldungen</h3>
                {sickLeaves.map(entry => (
-                 <div key={entry.id} className="bg-white p-5 rounded-2xl border border-slate-100 flex items-center justify-between">
-                    <div><p className="font-bold text-sm">{entry.startDate} bis {entry.endDate}</p><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status: {entry.status}</p></div>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${entry.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{entry.status}</span>
+                 <div key={entry.id} className="bg-white p-5 rounded-2xl border border-slate-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <div><p className="font-bold text-sm">{entry.startDate} bis {entry.endDate}</p><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status: {entry.status}</p></div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${entry.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'}`}>{entry.status}</span>
+                    </div>
+                    {entry.attachmentURL && (
+                      <a href={entry.attachmentURL} target="_blank" rel="noopener noreferrer" className="text-[12px] text-brand-orange font-bold hover:underline flex items-center gap-1">
+                        <FileText size={14} /> Attest anzeigen
+                      </a>
+                    )}
                  </div>
                ))}
                {sickLeaves.length === 0 && <p className="text-center py-6 text-slate-300 italic text-sm">Keine aktuellen Meldungen.</p>}
@@ -832,6 +900,7 @@ const App: React.FC = () => {
         return (
           <div className="max-w-2xl mx-auto space-y-8">
             <header className="text-center mb-10"><h2 className="text-4xl font-black text-brand-burgundy tracking-tighter">Horizont News</h2><p className="text-slate-500 font-medium italic">Immer informiert.</p></header>
+            {user.isAdmin && (
             <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex gap-4">
                <img src={user.avatar} className="w-12 h-12 rounded-2xl object-cover shadow-sm" />
                <div className="flex-1 flex gap-2">
@@ -839,6 +908,7 @@ const App: React.FC = () => {
                  <button onClick={handleAddPost} className="bg-brand-orange text-white p-4 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all"><Plus size={20} /></button>
                </div>
             </div>
+            )}
             {feed.map(post => (
               <article key={post.id} className="bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <div className="p-8">

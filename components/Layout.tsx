@@ -3,6 +3,7 @@ import React from 'react';
 import { NAVIGATION_ITEMS, ADMIN_NAVIGATION_ITEMS } from '../constants';
 import { AppView, User } from '../types';
 import { LogOut, Bell, Search, ShieldCheck } from 'lucide-react';
+import { NotificationsBell } from './Features/NotificationsBell';
 import Logo from './Logo';
 
 interface LayoutProps {
@@ -119,10 +120,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeView, setActiveView: ha
             />
           </div>
           <div className="flex items-center gap-6">
-             <button className="relative p-2.5 bg-white rounded-2xl shadow-sm text-slate-500 hover:text-brand-orange transition-colors">
-               <Bell size={18} />
-               <span className="absolute top-2 right-2.5 w-2 h-2 bg-brand-orange rounded-full border-2 border-white"></span>
-             </button>
+             <NotificationsBell user={user} />
              <div className="h-8 w-[1px] bg-slate-200"></div>
              <div className="flex items-center gap-3">
                <div className="text-right">

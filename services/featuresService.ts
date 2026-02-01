@@ -10,8 +10,10 @@ import {
   deleteDoc,
   doc,
   query,
+  getDoc,
   where,
   getDocs,
+  getDoc,
   onSnapshot,
   Timestamp,
   increment,
@@ -52,6 +54,22 @@ export async function setUserOffline(userId: string) {
   try {
     await updateDoc(doc(db, "users", userId), {
       isOnline: false,
+
+    // Try to send via Vercel serverless endpoint (if deployed). We fetch recipient email from users collection.
+    try {
+      const userSnap = await getDoc(doc(db, 'users', userId));
+      const toEmail = userSnap && userSnap.exists() ? (userSnap.data() as any).email : null;
+      if (toEmail) {
+        // fire-and-forget POST to local API route
+        fetch('/api/sendNotificationEmail', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: toEmail, subject: title, text: message, data })
+        }).catch(e => console.warn('Vercel email endpoint failed:', e));
+      }
+    } catch (e) {
+      console.warn('Could not send via Vercel endpoint:', e);
+    }
       lastSeen: Timestamp.now(),
     });
   } catch (error: any) {
@@ -123,16 +141,30 @@ export async function createShiftSwapRequest(
   requestedShift: string
 ) {
   try {
-    await addDoc(collection(db, "shiftSwapRequests"), {
+    const docRef = await addDoc(collection(db, "shiftSwapRequests"), {
       requesterId,
       requesterName,
-      targetUserId,
-      targetUserName,
+      recipientId: targetUserId,
+      recipientName: targetUserName,
       originalShift,
       requestedShift,
+      shiftTime: requestedShift || originalShift,
       status: "pending",
       createdAt: Timestamp.now(),
     });
+
+    // Notify the recipient
+    try {
+      await createNotification(
+        targetUserId,
+        "shift_swap",
+        "Schichttausch-Anfrage",
+        `${requesterName} hat eine Tausch-Anfrage für ${requestedShift || originalShift} gesendet.`,
+        { requestId: docRef.id }
+      );
+    } catch (nerr) {
+      console.warn("Warnung: Notification konnte nicht erstellt werden:", nerr);
+    }
     console.log("✅ Shift Swap Request created");
   } catch (error: any) {
     console.error("❌ Error:", error.message);
@@ -145,6 +177,25 @@ export async function approveShiftSwap(requestId: string) {
     await updateDoc(doc(db, "shiftSwapRequests", requestId), {
       status: "approved",
     });
+    // Notify requester about approval
+    try {
+      const reqRef = doc(db, "shiftSwapRequests", requestId);
+      const snap = await getDoc(reqRef);
+      if (snap.exists()) {
+        const data: any = snap.data();
+        if (data.requesterId) {
+          await createNotification(
+            data.requesterId,
+            "shift_swap",
+            "Schichttausch genehmigt",
+            `Deine Anfrage an ${data.recipientName || 'Kollege'} wurde genehmigt.`,
+            { requestId }
+          );
+        }
+      }
+    } catch (nerr) {
+      console.warn("Warnung: Notification bei Genehmigung fehlgeschlagen:", nerr);
+    }
     console.log("✅ Shift Swap approved");
   } catch (error: any) {
     console.error("❌ Error:", error.message);
@@ -443,6 +494,16 @@ export async function createNotification(
   }
 }
 
+export async function markNotificationRead(notificationId: string) {
+  try {
+    await updateDoc(doc(db, "notifications", notificationId), { read: true });
+    console.log("✅ Notification marked read", notificationId);
+  } catch (error: any) {
+    console.error("❌ Error marking notification read:", error.message);
+    throw error;
+  }
+}
+
 export function onNotificationsUpdated(
   userId: string,
   callback: (notifications: Notification[]) => void
@@ -495,7 +556,7 @@ export function onShiftSwapsUpdated(
 ) {
   const q = query(
     collection(db, "shiftSwapRequests"),
-    where("targetUserId", "==", targetUserId),
+    where("recipientId", "==", targetUserId),
     orderBy("createdAt", "desc")
   );
 
