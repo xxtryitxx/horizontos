@@ -25,11 +25,14 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'europe-west3');
 
 // Offline-Unterstützung aktivieren
-enableIndexedDbPersistence(db).catch((err) => {
+enableIndexedDbPersistence(db).catch((err: any) => {
   if (err.code === 'failed-precondition') {
     console.warn('Mehrere Tabs geöffnet - Offline-Persistierung nicht verfügbar');
   } else if (err.code === 'unimplemented') {
     console.warn('Browser unterstützt Offline-Persistierung nicht');
+  } else if (err.code !== 'IndexedDbTransactionError') {
+    // Ignoriere andere Fehler die nicht kritisch sind
+    console.debug('Firebase Persistierung:', err.message);
   }
 });
 

@@ -324,6 +324,56 @@ export function isEmail(email: string): boolean {
   return regex.test(email);
 }
 
-export function validatePassword(password: string): boolean {
-  return password.length >= 6;
+// ============================================
+// USER MANAGEMENT FUNCTIONS (Admin)
+// ============================================
+
+export async function lockUser(userId: string, shouldLock: boolean) {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      locked: shouldLock,
+      lockedAt: shouldLock ? Timestamp.now() : deleteField(),
+      updatedAt: Timestamp.now()
+    });
+    console.log(`✅ Benutzer ${shouldLock ? 'gesperrt' : 'entsperrt'}`);
+  } catch (error: any) {
+    console.error("❌ Fehler:", error.message);
+    throw error;
+  }
+}
+
+export async function deleteUserAccount(userId: string) {
+  try {
+    // Lösche User-Dokument aus Firestore
+    await deleteDoc(doc(db, "users", userId));
+    
+    // Lösche User-Daten (Posts, Messages, etc.)
+    const postsQuery = query(
+      collection(db, "posts"),
+      where("author", "==", userId)
+    );
+    const postsSnap = await getDocs(postsQuery);
+    for (const docSnap of postsSnap.docs) {
+      await deleteDoc(doc(db, "posts", docSnap.id));
+    }
+    
+    console.log("✅ Benutzer gelöscht");
+  } catch (error: any) {
+    console.error("❌ Fehler beim Löschen:", error.message);
+    throw error;
+  }
+}
+
+export async function updateUserRole(userId: string, isAdmin: boolean) {
+  try {
+    await updateDoc(doc(db, "users", userId), {
+      isAdmin,
+      role: isAdmin ? "Administrator" : "Mitarbeiter",
+      updatedAt: Timestamp.now()
+    });
+    console.log(`✅ Rolle aktualisiert`);
+  } catch (error: any) {
+    console.error("❌ Fehler:", error.message);
+    throw error;
+  }
 }

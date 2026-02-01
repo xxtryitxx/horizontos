@@ -41,8 +41,10 @@ import { auth, db, storage, functions } from './firebase';
 
 import Layout from './components/Layout';
 import Logo from './components/Logo';
+import AdminPanel from './components/AdminPanel';
 import { AppView, User, Post, BoardNote, Survey, Giveaway, Message, SickLeaveEntry, RosterEntry } from './types';
 import { getAiResponse } from './services/geminiService';
+import { lockUser, deleteUserAccount, updateUserRole } from './services/firebaseService';
 
 // Individual Components for Views
 import Snake from './components/Games/Snake';
@@ -345,6 +347,33 @@ const App: React.FC = () => {
       alert("Fehler: " + err.message);
     } finally {
       setIsProcessingRole(null);
+    }
+  };
+
+  const handleLockUser = async (userId: string, locked: boolean) => {
+    try {
+      await lockUser(userId, locked);
+      alert(`Benutzer ${locked ? 'gesperrt' : 'entsperrt'}`);
+    } catch (err: any) {
+      alert("Fehler beim Sperren: " + err.message);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteUserAccount(userId);
+      alert("Benutzer gelöscht");
+    } catch (err: any) {
+      alert("Fehler beim Löschen: " + err.message);
+    }
+  };
+
+  const handleAdminChangeRole = async (userId: string, newRole: 'admin' | 'mitarbeiter') => {
+    try {
+      await updateUserRole(userId, newRole === 'admin');
+      alert(`Rolle erfolgreich aktualisiert`);
+    } catch (err: any) {
+      alert("Fehler bei Rollenänderung: " + err.message);
     }
   };
 
@@ -744,31 +773,13 @@ const App: React.FC = () => {
               <h2 className="text-3xl font-black text-brand-burgundy tracking-tighter">Mitarbeiter-Verwaltung</h2>
               <p className="text-slate-500 font-medium italic">Verwalte Berechtigungen und Profile.</p>
             </header>
-            <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 overflow-hidden">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-widest text-slate-400"><th className="px-6 py-4">Mitarbeiter</th><th className="px-6 py-4">Status</th><th className="px-6 py-4 text-right">Aktionen</th></tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {allUsers.map(u => (
-                    <tr key={u.id}>
-                      <td className="px-6 py-4 flex items-center gap-3">
-                        <img src={u.avatar} className="w-10 h-10 rounded-xl object-cover" />
-                        <div><p className="font-bold text-sm">{u.name}</p><p className="text-[10px] text-slate-400">{u.email}</p></div>
-                      </td>
-                      <td className="px-6 py-4"><span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${u.isAdmin ? 'bg-brand-burgundy text-white' : 'bg-slate-100 text-slate-400'}`}>{u.isAdmin ? 'Admin' : 'Mitarbeiter'}</span></td>
-                      <td className="px-6 py-4 text-right">
-                        {u.id !== user.id && (
-                          <button onClick={() => handleChangeRole(u.id, u.isAdmin ? 'mitarbeiter' : 'admin')} disabled={isProcessingRole === u.id} className="text-brand-orange hover:bg-brand-orange/5 p-2 rounded-xl transition-all">
-                            {isProcessingRole === u.id ? <Loader2 className="animate-spin" size={16} /> : u.isAdmin ? <Shield size={16} /> : <ShieldCheck size={16} />}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <AdminPanel
+              allUsers={allUsers}
+              currentUser={user}
+              onDeleteUser={handleDeleteUser}
+              onLockUser={handleLockUser}
+              onChangeRole={handleAdminChangeRole}
+            />
           </div>
         );
 

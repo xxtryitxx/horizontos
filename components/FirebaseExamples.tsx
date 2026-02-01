@@ -11,8 +11,7 @@ import {
   createPost,
   onPostsUpdated,
   formatTimestamp,
-  isEmail,
-  validatePassword
+  isEmail
 } from '../services/firebaseService';
 import { auth } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -37,7 +36,7 @@ export function LoginForm() {
       if (!isEmail(email)) {
         throw new Error('Ungültige Email-Adresse');
       }
-      if (!validatePassword(password)) {
+      if (password.length < 6) {
         throw new Error('Passwort muss mindestens 6 Zeichen sein');
       }
 
@@ -110,7 +109,7 @@ export function RegisterForm() {
       if (!isEmail(email)) {
         throw new Error('Ungültige Email-Adresse');
       }
-      if (!validatePassword(password)) {
+      if (password.length < 6) {
         throw new Error('Passwort muss mindestens 6 Zeichen sein');
       }
       if (password !== confirmPassword) {

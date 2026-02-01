@@ -9,6 +9,9 @@ export interface User {
   avatar: string;
   score: number;
   isAdmin: boolean;
+  locked?: boolean;
+  lockedAt?: any;
+  createdAt?: any;
 }
 
 export interface Post {
